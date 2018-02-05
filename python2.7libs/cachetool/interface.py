@@ -1,55 +1,96 @@
 # -*- coding: UTF-8 -*-
 # Copyright (c) 2018 ChuckBiBi
-
-
 import hou
 
 
 def check_selection():
+
+    # 判断用户是否选中节点
     selection = hou.selectedNodes()
     if not selection:
         hou.ui.displayMessage("Nothing selected, please select a node")
     return selection
 
+def node_set(child_node, parent_node):
 
+    # 将创建的输出节点与选中的节点相连接
+    child_node.setNextInput(parent_node)
+    child_node.setPosition(parent_node.position())
+    child_node.move([0, -1])
+    child_node.setSelected(True)
+    parent_node.setSelected(False)
+
+
+def node_naming(node_name, node_type):
+    
+    # 生成创建的节点的名字
+    if node_name == "":
+        node_newname = node_type + "_1"
+    else:
+        node_newname = node_type + node_name
+
+    global node_newname
+
+
+def node_color(node):
+    
+    # 设置创建的节点的颜色
+    # TODO:将设置null节点的颜色功能加入panel中
+    node_color = hou.Color([0.5, 0.8, 0])
+    node.setColor(node_color)
+
+    
 def create_null():
+    
     selection = check_selection()
+
     for node in selection:
         input_name = hou.ui.readInput("CacheNode Name:", ("Create", "Cancel"))
         node_create = input_name[0]
         node_name = input_name[1]
+        node_type = "OUT"
 
+        # 创建null节点
         if node_create == 0:
-            if node_name == "":
-                node_name = "OUT_1"
-            else:
-                node_name = "OUT_" + node_name
+            node_naming(node_name, node_type)
 
-            # 创建null节点并连接选中节点
             parent = node.parent()
-            out_null = parent.createNode("null", node_name)
-            out_null.setNextInput(node)
-
-            # 移动null到选中节点下方一个单位
-            out_null.setPosition(node.position())
-            out_null.move([0, -1])
-
-            # 改变节点的选择状态
-            out_null.setSelected(True)
-            node.setSelected(False)
-
-            # 设置null节点的颜色
-            # TODO:将设置null节点的颜色功能加入panel中
-            node_color = hou.Color([0.5, 0.8, 0])
-            out_null.setColor(node_color)
+            out_null = parent.createNode("null", node_newname)
+            
+            node_set(out_null, node)
+            node_color(out_null)
         else:
-            break
+            exit()
 
         out_null.setDisplayFlag(True)
         out_null.setRenderFlag(True)
 
 
-def create_cache():
+class cache(object):
+    
+    def __init__(self, node_type, node_name, parent):
+        
+        self.ndoe_type = node_type
+        self.node_name = node_name
+        self.parent = parent
+
+
+    def create(self, node_type, node_name, parent):
+        if node_type != 3:
+            if node_type == 0:
+                node_type = "Cache"
+            elif node_type == 1:
+                node_type = "Playblast"
+            elif node_type == 2:
+                node_type = "Render"    
+        else:
+            exit()
+
+        node_create = parent.createNode(node_type, node_name)
+
+
+def create_cache_node():
+    
     selection = check_selection()
     for node in selection:
         input_name = hou.ui.readInput(
@@ -58,36 +99,12 @@ def create_cache():
         node_name = input_name[1]
         parent = node.parent()
 
-        # 通过用户选择不同的类型创建不同类型的输出节点
-        if node_type == 0:
-            if node_name == "":
-                node_name = "Cache_1"
-            else:
-                node_name = "Cache_" + node_name
-            cache_cache = parent.createNode("rop_geometry", node_name)
+        # 通过用户的选择实例化不同类型的输出节点
+        cache_node = cache(node_type, node_name, parent)
+        cache_node.create(node_type, node_name, parent)
 
-        elif node_type == 1:
-            if node_name == "":
-                node_name = "Playblast_1"
-            else:
-                node_name = "Playblast_" + node_name
-            cache_cache = parent.createNode("null", node_name)
-
-        elif node_type == 2:
-            if node_name == "":
-                node_name = "Render_1"
-            else:
-                node_name = "Render_" + node_name
-            cache_cache = parent.createNode("null", node_name)
-        else:
-            break
-
-        cache_cache.setNextInput(node)
-        cache_cache.setPosition(node.position())
-        cache_cache.move([0, -1])
-        cache_cache.setSelected(True)
-        node.setSelected(False)
+        node_set(cache_node, node)
 
 
 if __name__ == "__main__":
-    create_cache()
+    create_cache_node()
