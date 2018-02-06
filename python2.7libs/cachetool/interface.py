@@ -21,14 +21,13 @@ def node_set(child_node, parent_node):
     parent_node.setSelected(False)
 
 
-def node_naming(node_name, node_type):
+def node_naming(node_type, node_name):
     
     # 生成创建的节点的名字
     if node_name == "":
         node_newname = node_type + "_1"
     else:
-        node_newname = node_type + node_name
-
+        node_newname = node_type + "_" +  node_name
     return node_newname
 
 
@@ -46,16 +45,16 @@ def create_null():
 
     for node in selection:
         input_name = hou.ui.readInput("CacheNode Name:", ("Create", "Cancel"))
+
         node_create = input_name[0]
         node_name = input_name[1]
         node_type = "OUT"
 
         # 创建null节点
         if node_create == 0:
-            node_naming(node_name, node_type)
 
+            node_newname = node_naming(node_type, node_name)
             parent = node.parent()
-            print node_newname
             out_null = parent.createNode("null", node_newname)
             
             node_set(out_null, node)
@@ -76,18 +75,21 @@ class cache(object):
         self.parent = parent
 
 
-    def create(self, node_type, node_name, parent):
+    def generate_node_type(self, node_type, node_name, parent):
         if node_type != 3:
             if node_type == 0:
-                node_type = "Cache"
+                node_type = "cache"
             elif node_type == 1:
-                node_type = "Playblast"
+                node_type = "playblast"
             elif node_type == 2:
-                node_type = "Render"    
+                node_type = "render"    
         else:
             exit()
+        return node_type
+        
 
-        node_create = parent.createNode(node_type, node_name)
+    def record_node():
+        pass
 
 
 def create_cache_node():
@@ -96,15 +98,23 @@ def create_cache_node():
     for node in selection:
         input_name = hou.ui.readInput(
             "CacheNode Type:", ("FileCache", "PlayBlast", "Render", "Cancel"))
+
         node_type = input_name[0]
         node_name = input_name[1]
+
         parent = node.parent()
 
         # 通过用户的选择实例化不同类型的输出节点
         cache_node = cache(node_type, node_name, parent)
-        cache_node.create(node_type, node_name, parent)
 
+        node_type = cache_node.generate_node_type(node_type, node_name, parent)
+        node_type = "null"  # TODO:临时变量，等houdini中节点构建完后删除
+        node_newname = node_naming(node_type, node_name)
+
+        # 创建cache节点
+        cache_node = parent.createNode(node_type, node_newname)
         node_set(cache_node, node)
+        node_color(cache_node)
 
 
 if __name__ == "__main__":
