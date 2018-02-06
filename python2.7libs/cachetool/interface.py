@@ -29,7 +29,7 @@ def node_naming(node_name, node_type):
     else:
         node_newname = node_type + node_name
 
-    global node_newname
+    return node_newname
 
 
 def node_color(node):
@@ -55,6 +55,7 @@ def create_null():
             node_naming(node_name, node_type)
 
             parent = node.parent()
+            print node_newname
             out_null = parent.createNode("null", node_newname)
             
             node_set(out_null, node)
