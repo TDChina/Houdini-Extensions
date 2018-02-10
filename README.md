@@ -22,4 +22,4 @@ Cache Tool扩展包的主要功能是在houdini中更方便的设置以及管理
 
 ## 更新说明
 
-- [源代码链接](https://github.com/chuckbibi/Houdini-Extensions8)
+- [源代码链接](https://github.com/chuckbibi/Houdini-Extensions)
