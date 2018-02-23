@@ -55,11 +55,11 @@ def create_null_node():
         
         input_name = hou.ui.readInput("CacheNode Name:", ("Create", "Cancel"))
 
-        node_create = input_name[0]
+        node_creating = input_name[0]
         node_name = input_name[1]
         node_type = "OUT"
 
-        if node_create is 0:
+        if not node_creating:
             
             node_newname = rename_node(node_type, node_name)
             parent = node.parent()
@@ -129,6 +129,9 @@ def create_cache_node():
         cache_node = parent.createNode(node_type, node_newname)
         link_node(cache_node, node)
         colour_node(cache_node)
+
+        cache_node.setDisplayFlag(True)
+        cache_node.setRenderFlag(True)
 
 
 if __name__ is "__main__":
