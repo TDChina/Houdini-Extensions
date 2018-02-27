@@ -1,0 +1,4 @@
+{
+    "python.pythonPath": "C:\\Program Files\\Side Effects Software\\Houdini 16.0.736\\bin\\hython.exe",
+    "python.formatting.provider": "autopep8"
+}
