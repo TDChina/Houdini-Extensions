@@ -7,8 +7,7 @@ def check_selection():
 
     # 判断用户是否选中节点
     selection = hou.selectedNodes()
-    if not selection:
-        
+    if not selection:       
         hou.ui.displayMessage("Nothing selected, please select a node")
 
     return selection
@@ -27,12 +26,10 @@ def link_node(child_node, parent_node):
 def rename_node(node_type, node_name):
 
     # 生成创建的节点的名字
-    if node_name is "":
-        
+    if node_name is "":       
         node_newname = node_type + "_1"
 
-    else:
-        
+    else:       
         node_newname = node_type + "_" + node_name
 
     return node_newname
@@ -51,16 +48,14 @@ def create_null_node():
      # 创建null节点
     selection = check_selection()
 
-    for node in selection:
-        
+    for node in selection:     
         input_name = hou.ui.readInput("CacheNode Name:", ("Create", "Cancel"))
 
         node_creating = input_name[0]
         node_name = input_name[1]
         node_type = "OUT"
 
-        if not node_creating:
-            
+        if not node_creating:        
             node_newname = rename_node(node_type, node_name)
             parent = node.parent()
             out_null = parent.createNode("null", node_newname)
@@ -68,8 +63,7 @@ def create_null_node():
             link_node(out_null, node)
             colour_node(out_null)
 
-        else:
-            
+        else:       
             exit()
 
         out_null.setDisplayFlag(True)
@@ -87,15 +81,13 @@ class Cache(object):
 
     def generate_node_type(self, x):
         
-        if x is not 3:
-            
+        if x is not 3:       
             x = str(x)
             type_dict = {"0" : "cache", "1" : "playblast", "2" : "render"}
             node_type = type_dict[x]
             return node_type
 
-        else:
-            
+        else:         
             exit()
 
 
@@ -108,8 +100,7 @@ def create_cache_node():
 
     selection = check_selection()
 
-    for node in selection:
-        
+    for node in selection:     
         input_name = hou.ui.readInput(
             "CacheNode Type:", ("FileCache", "PlayBlast", "Render", "Cancel"))
 
@@ -123,7 +114,6 @@ def create_cache_node():
         node_type = cache_node.generate_node_type(node_type)
         node_newname = rename_node(node_type, node_name)
        
-
         # 创建cache节点
         node_type = "null"  # TODO:临时变量，等houdini中节点构建完后删除
         cache_node = parent.createNode(node_type, node_newname)
