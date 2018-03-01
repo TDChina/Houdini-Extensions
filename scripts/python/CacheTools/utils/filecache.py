@@ -1,21 +1,21 @@
 # -*- coding: UTF-8 -*-
 # Copyright (c) 2018 ChuckBiBi
-import hou
 import os
 import shutil
-from CacheTools.config import path
+import json
+import hou
 
 
-def check_has_unsaved():
+def check_hip_freshness():
 
     # 当前hip可能是新建的场景还未保存过
-    if hou.hipFile.hasUnsavedChanges():
+    if hou.hipFile.name() != hou.hipFile.path():
         if hou.ui.displayMessage(
             "The current hip never saved ,you needs to be saved.",
             buttons=(" Save ", " Next Time ")
         ) == 0:
             path_hip = hou.ui.selectFile(
-                # start_directory = path.set_project_path(), TODO:
+                # start_directory =  TODO:
                 start_directory = "E:/Temporary/",
                 title = "Save As",
                 file_type = hou.fileType.Any,
@@ -167,7 +167,7 @@ def open_path(node):
                 os.makedirs(path_dir)
 
             except WindowsError:
-                check_has_unsaved()
+                check_hip_freshness()
                 path_dir = os.path.dirname(node.evalParm("file"))
                 os.makedirs(path_dir)
 

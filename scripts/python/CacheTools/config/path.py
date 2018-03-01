@@ -3,6 +3,7 @@
 import os
 import json
 import hou
+from CacheTools.utils import filecache as fc
 
 
 def set_project_path():
@@ -23,28 +24,41 @@ def extract_ls(name):
     "ls_cache_status" : ["temp", "publish", "assets"],
     "ls_cache_status_assets" : ["..."]
     }
+    
     ls = ls_libs[name] 
 
     return ls
 
 
-def generate_menu_list(ls_libs_kind, ls_temp=[]):
+def generate_menu_list(ls_temp, none=True, temp=False, reverse=False):
     
     # 根据用户选择的不同的类，生成Houdini中menu
-    if ls_libs_kind != 0:
-        ls_name = "ls_" + ls_libs_kind
-        ls = extract_ls(ls_name)
-    else:
+    if temp:
         ls = ls_temp
-        
-    ls_menu = [0, "None"]
+    else:
+        ls_name = "ls_" + ls_temp
+        ls = extract_ls(ls_name)
+    
+    if none:
+        ls_menu = [0, "None"]
+    else:
+        ls_menu = []
 
-    for index, cache_type in enumerate(ls, 1):
-        x = index
-        y = cache_type.capitalize()
+    if reverse:
+        ls = sorted(ls, reverse=True)
+        for i in range(len(ls)):
+            x = len(ls)
+            y = ls[i]
+            ls_menu.append(x)
+            ls_menu.append(y)
+            x -= 1
 
-        ls_menu.append(x)
-        ls_menu.append(y)
+    else:
+        for index, item in enumerate(ls, 1):
+            x = index
+            y = item.capitalize()
+            ls_menu.append(x)
+            ls_menu.append(y)
 
     return ls_menu
 
@@ -80,10 +94,64 @@ def get_cam():
     return ls_cam
 
 
-def set_version():
-    pass
+def increnment_version():
 
+    # 检测用户创建的hip命名是否为name_version.hip，获取版本号
+    fc.check_hip_freshness()
+    path_hip = hou.hipFile.path()
+    hou.hipFile.save(path_hip)
+    path_hip_dir = os.path.dirname(path_hip)
+    name_hip = path_hip.split("/")[-1]
+    flag_version = "_v0"
+
+    if flag_version not in path_hip:
+        version = "v000"
+        name_hip = "".join([name_hip.split(".")[0], "_", version, ".hip"])
+
+    version = name_hip.split(".")[-2].split("_")[-1][1:]
+    version_increnment = "v" + "%03d" % (int(version)+1)
+    name_hip = "".join([name_hip.split(".")[0].split("_")[0], "_", version_increnment, ".hip"])
+    path_hip_new = path_hip_dir + "/" + name_hip
+    hou.hipFile.save(path_hip_new)
+
+    hou.ui.setStatusMessage(
+                    "Version increnment and save done!"
+                )
+
+
+def get_all_version(path):
     
+    # 获取dir中所有的version
+    path_dir = os.path.dirname(path)
+    name = path.split("/")[-1].split("_")[0]
+    ls_files = []
+    ls_version = []
+
+    if os.path.exists(path_dir):
+        files = os.listdir(path_dir)
+        
+        for i in range(len(files)):
+            if files[i].split(".")[-1] == path.split(".")[-1]:
+                if name == files[i].split("_")[0] :
+                    ls_files.append(files[i])
+
+        if ls_files != []:
+            for j in range(len(ls_files)):
+                version = ls_files[j].split(".")[0].split("_")[-1]
+                if version not in ls_version:
+                    ls_version.append(version)
+        else:
+            ls_version = ["none"]
+
+    else:
+        ls_version = ["none"]
+
+    return ls_version
+    
+
+# ====================
+# interface function
+
 def generate_path(node):
 
     # 获取组成路径的各个元素值
@@ -92,8 +160,9 @@ def generate_path(node):
     c_status = get_value(node, "cache_status")
     c_name = node.name()
 
-    cam = (["none"] + get_cam())[node.evalParm("cam")]
-    version = "v001"
+    cam = get_cam()[node.evalParm("cam")]
+    temp = "E:/Temporary/test/geo/temp/filecache_v001.0001.bgeo.sc"
+    version = get_all_version(temp)[node.evalParm("version")]
 
     # 建立输出缓存路径的组成元素字典
     element_list = {
@@ -137,6 +206,4 @@ def generate_path(node):
 
 
 if __name__ is "__main__":
-    name = "cache_group"
-    ls_menu = generate_menu_list(name)
-    print ls_menu
+    get_all_version()
