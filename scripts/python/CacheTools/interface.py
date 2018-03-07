@@ -115,6 +115,7 @@ def create_cache_node():
         node_newname = rename_node(node_type, node_name)
        
         # 创建cache节点
+        print node_type
         node_type = "null"  # TODO:临时变量，等houdini中节点构建完后删除
         cache_node = parent.createNode(node_type, node_newname)
         link_node(cache_node, node)

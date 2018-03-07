@@ -1,87 +1,57 @@
 # -*- coding: UTF-8 -*-
 # Copyright (c) 2018 ChuckBiBi
 import os
+import re
 import shutil
 import json
 import hou
+from CacheTools.config import generate_path
+reload(generate_path)
 
 
-def check_hip_freshness():
-
-    # 当前hip可能是新建的场景还未保存过
-    if hou.hipFile.name() != hou.hipFile.path():
-        if hou.ui.displayMessage(
-            "The current hip never saved ,you needs to be saved.",
-            buttons=(" Save ", " Next Time ")
-        ) == 0:
-            path_hip = hou.ui.selectFile(
-                # start_directory =  TODO:
-                start_directory = "E:/Temporary/",
-                title = "Save As",
-                file_type = hou.fileType.Any,
-                pattern = "*.hip",
-                default_value = "test_v001.hip",
-                chooser_mode = hou.fileChooserMode.Write
-            )
-            hou.hipFile.save(path_hip)
-            
-        else:
-            exit()
+path_hip = hou.hipFile.path()
+path_dir = os.path.dirname(path_hip)
 
 
 def check_path_format(path):
 
-    # 参数中的路径缺少盘符信息
-    path_parm = path
-    path_parm_dir = os.path.dirname(path_parm)
-    path_drive = path_parm.split("/")[0]
+    path_dir = os.path.dirname(path)
+    path_drive = os.path.splitdrive(path)[0]
 
-    if path_drive == "":
-        if hou.ui.displayMessage(
-            "The 'Geometry File' format error,please check it!",
-            details=(
-                "The path format error is caused by not writing the correct 'Driver' information. \n"
-                "like:'/geo/temp/...'. \n"
-                "If you have 'Save to Disk' before 'Open Path',"
-                "You may output cache to C:\."
-            )
-        ) == 0:
-            exit()
-
-    # 参数中的路径不在hip文件的目录下
-    path_hip = hou.hipFile.path()
-    path_hip_dir = os.path.dirname(path_hip)
-
-    if path_hip_dir not in path_parm_dir:
+    # 路径不在hip文件的根目录下
+    if path_dir not in path_dir:
         hou.ui.setStatusMessage(
-            "You current cache path is not in /.hip."
+            "You current cache path is not in " + path_dir
         )
 
+    # 路径缺少盘符信息
+    if path_drive:
+        return
 
-def get_list_amount(ls):
+    if hou.ui.displayMessage(
+        "The 'Geometry File' format error,please check it!",
+        details=(
+            "The path format error is caused by not writing the correct 'Drive' information. \n"
+            "like:'/geo/temp/...'. \n"
+            "If you have 'Save to Disk' before 'Open Path',"
+            "You may output cache to C:\."
+        )
+    ) == 0:
+        exit()
 
-    # 得到列表中的元素的数量
-    ls_count = 0
 
-    if ls != []:
-        for i in range(len(ls)):
-            ls_count += 1
+def get_list_range(ls_files):
 
-    return ls_count
-
-
-def get_list_range(ls):
-
-    # 得到列表中元素的序列范围
+    # 得到列表中文件名中的的序列范围
     ls_range = []
     ls_range_frame = "None"
 
-    if ls != []:
-        for i in range(len(ls)):
-            temp = ls[i].split(".")
-            for j in range(len(temp)):
-                if temp[j].isdigit():
-                    ls_range.append(temp[j])
+    if ls_files:
+        for i in ls_files:
+            temp = i.split(".")
+            for j in temp:
+                if j.isdigit():
+                    ls_range.append(j)
 
         ls_range_start = ls_range[0]
         ls_range_end = ls_range[-1]
@@ -90,60 +60,58 @@ def get_list_range(ls):
     return ls_range_frame
 
 
-def getSizeInNiceString(sizeInBytes):
+def get_size_format(size_in_bytes):
 
-    # Convert the given byteCount into a string like: 9.9bytes/KB/MB/GB
+    # 将给定的bytes格式转换成以下几种格式：bytes/KB/MB/GB
     for (cutoff, label) in [(1024 * 1024 * 1024, "GB"),
                             (1024 * 1024, "MB"),
                             (1024, "KB"),
                             ]:
-        if sizeInBytes >= cutoff:
-            return "%.1f %s" % (sizeInBytes * 1.0 / cutoff, label)
+        if size_in_bytes >= cutoff:
+            return "%.1f %s" % (size_in_bytes * 1.0 / cutoff, label)
 
-    if sizeInBytes == 1:
+    if size_in_bytes == 1:
         return "1 byte"
 
     else:
-        bytes = "%.1f" % (sizeInBytes or 0,)
+        bytes = "%.1f" % (size_in_bytes or 0,)
         return (bytes[:-2] if bytes.endswith('.0') else bytes) + " bytes"
 
 
-def get_lsit_size(ls):
+def get_lsit_size(ls_files):
 
     # 得到列表中所有文件的总内存大小
-    ls_size = 0
+    ls_files_size = 0
 
-    if ls != []:
-        for i in range(len(ls)):
-            size = os.path.getsize(ls[i])
-            ls_size += size
+    if ls_files:
+        for i in ls_files:
+            file_size = os.path.getsize(i)
+            ls_files_size += file_size
 
-    ls_size = getSizeInNiceString(ls_size)
+    ls_size = get_size_format(ls_files_size)
 
     return ls_size
 
 
-def generate_files_list(path, region=0):
+def generate_files_list(path_file, part=1):
 
-    # 根据缓存的命名格式将所有缓存文件生成一个列表
-    path_file = path.split(".")
-    path_file_os = path_file[0]
-    path_dir = os.path.dirname(path_file_os)
-    path_rule = path_file[0].split("/")[-1]
+    # 根据缓存文件的路径命名格式将所有缓存文件生成一个列表
+    path_file_name = path_file.split(".")[0]
+    path_dir = os.path.dirname(path_file_name)
+    path_rule = path_file_name.split("/")[-1]
     path_files = []
 
     if os.path.exists(path_dir):
         path_dir_files = os.listdir(path_dir)
-        if region:
-            for i in range(len(path_dir_files)):
-                path = "".join([path_dir, "/", path_dir_files[i]])
-                path_files.append(path)
-
-        else:
-            for i in range(len(path_dir_files)):
-                if path_rule in path_dir_files[i]:
-                    path = "".join([path_dir, "/", path_dir_files[i]])
+        for i in path_dir_files:
+            if part:
+                if path_rule in i:
+                    path = "".join([path_dir, "/", i])
                     path_files.append(path)
+
+            else:
+                path = "".join([path_dir, "/", i])
+                path_files.append(path)
 
     return path_files
 
@@ -152,49 +120,46 @@ def generate_files_list(path, region=0):
 # interface function
 
 def open_path(node):
-    
+
     # 打开Geometry file下的路径
+    generate_path.check_hip_freshness()
     path_parm = node.evalParm("file")
-    check_path_format(path_parm)
     path_dir = os.path.dirname(path_parm)
+    check_path_format(path_parm)
 
     if not os.path.exists(path_dir):
         if hou.ui.displayMessage(
             "Geometry file path cannot be empty! Do you want to create one?",
             buttons=(" Yes ", " Next Time ")
         ) == 0:
-            try:
-                os.makedirs(path_dir)
-
-            except WindowsError:
-                check_hip_freshness()
-                path_dir = os.path.dirname(node.evalParm("file"))
-                os.makedirs(path_dir)
+            os.makedirs(path_dir)
 
         else:
             exit()
-    
+
     os.startfile(path_dir)
 
 
 def destroy_geo(node):
 
     # 生成Geomerty file的文件列表和同层级目录下所有的文件列表
+    generate_path.check_hip_freshness()
     path_parm = node.evalParm("file")
-    path_dir = os.path.dirname(path_parm)
-    path_os = path_parm.split("/")[-1].split(".")[0]
+    path_parm_dir = os.path.dirname(path_parm)
     check_path_format(path_parm)
-
     path_files = generate_files_list(path_parm)
-    path_dir_files = generate_files_list(path_parm, region=1)
+    path_dir_files = generate_files_list(path_parm, part=0)
 
     # 获取缓存路径下文件的信息并反馈信息
-    all_amount = get_list_amount(path_dir_files)
+    all_amount = len(path_dir_files)
     all_size = get_lsit_size(path_dir_files)
-
-    ls_amount = get_list_amount(path_files)
-    ls_range = get_list_range(path_files)
+    ls_amount = len(path_files)
     ls_size = get_lsit_size(path_files)
+    ls_range = get_list_range(path_files)
+    file_name = path_parm.split("/")[-1]
+    name = file_name.split("_")[0]
+    temp = re.findall(r"v\d\d\d", file_name)
+    version = "none" if not temp else temp[0]
 
     user = hou.ui.displayMessage(
         "Destroy all cache in the Geometry file folder? \n"
@@ -207,20 +172,21 @@ def destroy_geo(node):
             "amount: %d \n"
             "szie: %s \n"
             "name: %s \n"
-            "frame range: %s \n"
-            % (all_amount, all_size, ls_amount, ls_size, path_os, ls_range)
+            "version: %s \n"
+            "frame_span: %s \n"
+            % (all_amount, all_size, ls_amount, ls_size, name, version, ls_range)
         ),
         buttons=(" All ", " Only ", " Cancel ")
     )
 
     if user == 0:
-        if not os.path.exists(path_dir):
+        if not os.path.exists(path_parm_dir):
             if hou.ui.displayMessage(
                 "Folder does not exist!!!"
             ) == 0:
                 exit()
         else:
-            shutil.rmtree(path_dir)
+            shutil.rmtree(path_parm_dir)
             hou.ui.setStatusMessage(
                 "Folder destroy done!"
             )
@@ -232,8 +198,8 @@ def destroy_geo(node):
             ) == 0:
                 exit()
         else:
-            for i in range(len(path_files)):
-                os.remove(path_files[i])
+            for i in path_files:
+                os.remove(i)
                 hou.ui.setStatusMessage(
                     "Current cache destroy done!"
                 )

@@ -1,0 +1,40 @@
+{
+    "ls_cache_group": [
+        "mod", 
+        "anim", 
+        "render", 
+        "cfx", 
+        "efx"
+    ], 
+    "ls_cache_group_cfx": [
+        "far", 
+        "cloth", 
+        "muscle"
+    ], 
+    "ls_cache_group_efx": [
+        "rbd", 
+        "filp", 
+        "pyro", 
+        "pop"
+    ], 
+    "ls_cache_group_mod": [
+        "prop", 
+        "char", 
+        "vegetation", 
+        "rock", 
+        "sence"
+    ], 
+    "ls_cache_status": [
+        "temp", 
+        "publish", 
+        "assets"
+    ], 
+    "ls_cache_status_assets": [
+        "..."
+    ], 
+    "ls_cache_type": [
+        "geo", 
+        "filp", 
+        "render"
+    ]
+}
