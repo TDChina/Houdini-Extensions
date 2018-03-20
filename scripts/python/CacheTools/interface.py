@@ -3,9 +3,13 @@
 import hou
 
 
-def check_selection():
+rop_parent = hou.node('/out')
 
-    # 判断用户是否选中节点
+def check_selection():
+    
+    """检查用户是否有选中节点
+    """
+
     selection = hou.selectedNodes()
     if not selection:       
         hou.ui.displayMessage("Nothing selected, please select a node")
@@ -14,8 +18,10 @@ def check_selection():
 
 
 def link_node(child_node, parent_node):
+    
+    """与输入的上游（父）节点连接
+    """
 
-    # 将创建的输出节点与选中的节点相连接
     child_node.setNextInput(parent_node)
     child_node.setPosition(parent_node.position())
     child_node.move([0, -1])
@@ -24,11 +30,13 @@ def link_node(child_node, parent_node):
 
 
 def rename_node(node_type, node_name):
+    
+    """将节点的命名用规范的格式来命名
+    """
 
-    # 生成创建的节点的名字
     if node_name is "":       
         node_newname = node_type + "_1"
-
+        
     else:       
         node_newname = node_type + "_" + node_name
 
@@ -36,15 +44,77 @@ def rename_node(node_type, node_name):
 
 
 def colour_node(node):
+    
+    """设置创建的节点的颜色
+    """
 
-    # 设置创建的节点的颜色
     # TODO:将设置null节点的颜色功能加入panel中
     colour_node = hou.Color([0.5, 0.8, 0])
     node.setColor(colour_node)
 
 
-def create_null_node():
+class Cache(object):
+    
+    def __init__(self, ndoe):
+    
+        self.ndoe = ndoe
+        self.inputs = []
 
+
+    def judge_cache(self):
+        return self.node.type().name() == "filecache"
+
+
+    def generate_rop_name(self):
+        return self.node.name() + "_cache"
+
+
+def get_upstream(node):
+    
+    cache_node = []
+    for i in node.inputs():
+        if i.type().name() == "filecache":
+            cache_node.append(i)
+
+        else:
+            cache_node.extend(get_upstream(i))
+
+    return cache_node
+
+
+def to_cache(node):
+    
+    cache = Cache(node)
+    cache.inputs = [to_cache(i) for i in get_upstream(node)]
+    
+    return cache
+
+
+def to_Rop(cache):
+    
+    r = rop_parent.node(chain.ropName())
+
+    if not r:
+        r = rop_parent.createNode('fetch' if chain.isFC() else 'merge')  
+        r.setName(chain.ropName())  
+    else:  
+        for i in range(len(r.inputs())):  
+            r.setInput(i, None)  
+
+    r.setColor(chain.node.color())  
+
+    if chain.isFC():  
+        r.parm('source').set(chain.node.path() + '/render')  
+      
+    for i, input_rop in enumerate([toRop(i) for i in chain.inputs]):
+        r.setInput(i, input_rop)
+        
+    r.moveToGoodPosition()  
+
+    return r  
+    
+def create_null_node():
+    
      # 创建null节点
     selection = check_selection()
 
@@ -70,52 +140,24 @@ def create_null_node():
         out_null.setRenderFlag(True)
 
 
-class Cache(object):
-
-    def __init__(self, node_type, node_name, parent):
-
-        self.ndoe_type = node_type
-        self.node_name = node_name
-        self.parent = parent
-
-
-    def generate_node_type(self, x):
-        
-        if x is not 3:       
-            x = str(x)
-            type_dict = {"0" : "cache", "1" : "playblast", "2" : "render"}
-            node_type = type_dict[x]
-            return node_type
-
-        else:         
-            exit()
-
-
-    def record_node():
-        
-        pass
-
-
 def create_cache_node():
-
+    
     selection = check_selection()
 
     for node in selection:     
         input_name = hou.ui.readInput(
-            "CacheNode Type:", ("FileCache", "PlayBlast", "Render", "Cancel"))
+            "CacheNode Name:", ("Create", "Cancel"))
 
-        node_type = input_name[0]
+        if not input_name[0]:
+            node_type = "cache"
+        else:
+            exit()
+
         node_name = input_name[1]
-        parent = node.parent()
-
-        # 通过用户的选择实例化不同类型的输出节点
-        cache_node = Cache(node_type, node_name, parent)
-
-        node_type = cache_node.generate_node_type(node_type)
         node_newname = rename_node(node_type, node_name)
-       
-        # 创建cache节点
-        print node_type
+        parent = node.parent()
+ 
+        cache_node = Cache(node)    # 实例化缓存输出节点，并创建cache缓存节点
         node_type = "null"  # TODO:临时变量，等houdini中节点构建完后删除
         cache_node = parent.createNode(node_type, node_newname)
         link_node(cache_node, node)
@@ -123,7 +165,7 @@ def create_cache_node():
 
         cache_node.setDisplayFlag(True)
         cache_node.setRenderFlag(True)
-
+         
 
 if __name__ is "__main__":
     create_null_node()

@@ -6,24 +6,6 @@ import json
 import hou
 
 
-
-"""
-path_file = 'E:/Temporary/test/geo/temp/test_v001.0001.bgeo.sc'
-path_files = [
-    'E:/Temporary/test/geo/temp/test_v001.0001.bgeo.sc', 
-    'E:/Temporary/test/geo/temp/test_v001.0002.bgeo.sc', 
-    ...]
-path_dir = 'E:/Temporary/test/geo/temp'
-==========
-file = 'test_v001.0001.bgeo.sc'
-files = ['test_v001.0001.bgeo.sc', 'test_v001.0002.bgeo.s'c, ...]
-file_name = "test_v001"
-file_fname = 'test'
-file_version = "v001"
-file_fram = "0001"
-
-"""
-
 path_hip = hou.hipFile.path()
 path_hip_dir = os.path.dirname(path_hip)
 hip_name = os.path.basename(path_hip)
@@ -50,7 +32,6 @@ def check_hip_freshness():
             chooser_mode=hou.fileChooserMode.Write
         )
         hou.hipFile.save(path_hip_new)
-
     else:
         exit()
 
@@ -87,7 +68,6 @@ def record_list():
     
     # template : prj/geo/group/temp/cam/node/version/
     ls_libs = {
-    "ls_cache_type" : ["geo", "filp", "render"],
     "ls_cache_group" : ["mod", "anim", "render", "cfx", "efx"],
     "ls_cache_group_mod" : ["prop", "char", "vegetation", "rock", "sence"],
     "ls_cache_group_cfx" : ["far", "cloth", "muscle"],
@@ -99,8 +79,10 @@ def record_list():
     json_str = json.dumps(ls_libs)
     json_dict = json.loads(json_str)
     data = json.dumps(json_dict, sort_keys=True, indent=4)
+
     with open(os.path.dirname(__file__) + "\data\ls_libs.json", "w") as file:
         file.write(data)
+
         print "Data file record completed...."
 
 
@@ -110,7 +92,11 @@ def extract_list(ls_libs_kind):
         data = load_file.read()
 
     ls_libs = json.loads(data)
-    ls = ls_libs[ls_libs_kind]
+
+    try:
+        ls = ls_libs[ls_libs_kind]
+    except:
+        return []
 
     return ls
 
@@ -128,7 +114,6 @@ def generate_menu_list(lst, none_option=True, temp=False, reverse=False):
             ls_menu.append(num)
             ls_menu.append(i)
             num -= 1
-
     else:
         for index, item in enumerate(ls_input, 1):
             x = index
@@ -139,17 +124,18 @@ def generate_menu_list(lst, none_option=True, temp=False, reverse=False):
     return ls_menu
 
 
-def get_value(node, ls_libs_kind):
+def get_value(node, ls_libs_kind, detail=False, group="none"):
     
-   
     path_node = node.path() # 得到Houdini中当前menu选择的是什么类的缓存列表
     ls_kind = path_node + "/" + ls_libs_kind
     parm_eval = node.evalParm(ls_kind)
 
-    ls_name = "ls_" + ls_libs_kind  # 从ls_libs中获取当前下的具体的元素名称
+    temp = "ls_" + ls_libs_kind # 从ls_libs中获取当前下的具体的元素名称
+    ls_name = (temp + group) if detail else temp    
     ls = ["none"] + extract_list(ls_name)
+    value = str(ls[parm_eval])
 
-    return str(ls[parm_eval])
+    return value
 
  
 def get_cam():
@@ -180,7 +166,6 @@ def get_all_version(path):
                 ls_version.append(i)
         else:
             ls_version = ["None"]
-
     else:
         ls_version = ["None"]
 
@@ -190,45 +175,56 @@ def get_all_version(path):
 # ====================
 # interface function
 
-def generate_path(node):
+def generate_path(node, set_path=True):
     
-    file_type = get_value(node, "cache_type")   # 获取组成路径的各个元素值，并生成元素组列表
-    file_group = get_value(node, "cache_group")
-    file_status = get_value(node, "cache_status")
-    file_name = node.name()
-    # cam = get_cam()[node.evalParm("cam")]
-    element_list = [file_type, file_status, file_group, file_name]
-    path_output_dir = path_hip_dir + "/" # 生成输出文件的路径
+    cache_type = "geo"  # 获取组成路径的各个元素值，并生成元素组列表
+    cache_status = get_value(node, "cache_status")
+    cache_group = get_value(node, "cache_group")
+
+    if cache_group == "none":   # 当组为none时，组的分类也为none
+        cache_group_type = "none"
+    else:
+        try:
+            cache_group_type = get_value(node, "cache_group_", detail=True, group=cache_group)
+        except IndexError:
+            hou.node(node.path()).parm("cache_group_").set(0)
+            cache_group_type = "none"
+        
+    cache_name = node.name()
+    cam = get_cam()[node.evalParm("cam")]
+
+    element_list = [cache_type, cache_status, cache_group, cache_group_type, cache_name]    # 生成输出文件的路径各字段元素列表
+    path_output_dir = path_hip_dir + "/"
 
     for i in element_list:
         if i == "none":
             continue
         path_output_dir += i + "/"
 
-    ls_version = sorted(get_all_version(path_output_dir), reverse=True) #version增版
+    ls_version = sorted(get_all_version(path_output_dir), reverse=True)
     version_max = ls_version[0]
-    version = ls_version[node.evalParm("version")]
-    if node.evalParm("increnment"):
-        version = "v" + "%03d" % (int(version_max[1:])+1)
 
-    path_output = path_output_dir + version + "/"
-
-    kind = [file_type, ""][file_type == "none" ]    # Houdini状态栏打印生成的路径结果，并返回给"path"参数
-
-    if path_output == path_hip:
-        hou.ui.setStatusMessage(
-            "".join(["Generate ", kind, " path: ", path_output,
-            "          ",
-            "Generated path is in the same folder as hip,",
-            "Please check it again"
-            ]))
-
+    if version_max != "None":   # 如果返回的version列表中只有“None”，就输出“v001”
+        version = ls_version[node.evalParm("version")]
     else:
-        hou.ui.setStatusMessage(
-            "".join(["Generate ", kind, " path: ", path_output
-            ]))
-    
-    node.parm("path").set(path_output)
+        hou.node(node.path()).parm("version").set(0)
+        version = "v001"
+
+    path_output = path_output_dir + version + "/"       
+
+    if set_path:    # 是否修改界面的task_path参数，如果false则修改的是load_path参数
+        if node.evalParm("increnment"):     # 如果“increnment”参数被勾选，输出的version在返回的version列表中以最新版本号升一版
+            if version_max != "None":
+                version_up = "v" + "%03d" % (int(version_max[1:])+1)
+                path_output = path_output_dir + version_up + "/"
+
+        node.parm("task_path").set(path_output)
+    else:
+        node.parm("load_path").set(path_output)
+
+        return path_output
+        
+    hou.ui.setStatusMessage("".join(["Generate geo path: ", path_output]))
 
     return path_output
 

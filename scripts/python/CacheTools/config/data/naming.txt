@@ -1,0 +1,16 @@
+"""
+path_file = 'E:/Temporary/test/geo/temp/test_v001.0001.bgeo.sc'
+path_files = [
+    'E:/Temporary/test/geo/temp/test_v001.0001.bgeo.sc', 
+    'E:/Temporary/test/geo/temp/test_v001.0002.bgeo.sc', 
+    ...]
+path_dir = 'E:/Temporary/test/geo/temp'
+==========
+file = 'test_v001.0001.bgeo.sc'
+files = ['test_v001.0001.bgeo.sc', 'test_v001.0002.bgeo.s'c, ...]
+file_name = "test_v001"
+file_fname = 'test'
+file_version = "v001"
+file_fram = "0001"
+
+"""
